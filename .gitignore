@@ -1,0 +1,7 @@
+/.idea/
+/jdbc-demo/target/
+/mybatis-demo/target/
+/mybatis-annotation-demo/target/
+/mybatis-dao-impl-demo/target/
+/mybatis-design-demo/target/
+/mybatis-demo-properties/target/
