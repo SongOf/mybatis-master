@@ -2,6 +2,7 @@ package com.mybatis.dao;
 
 import com.mybatis.domain.User;
 import org.apache.ibatis.annotations.*;
+import org.apache.ibatis.mapping.FetchType;
 
 import java.util.List;
 
@@ -9,6 +10,7 @@ import java.util.List;
  * CRUD一共有四个注解
  * @Select @Insert @Update @Delete
 * */
+@CacheNamespace(blocking = true)
 public interface IUserDao {
     /***
     * @Description 查询所有用户
@@ -16,12 +18,13 @@ public interface IUserDao {
     * @return java.util.List<com.mybatis.domain.User>
     */
     @Select("select * from user")
-    @Results(id = "userMap", value = {
-            @Result(id=true,column = "id",property = "id"),
+    @Results(id = "userMap",value = {
+            @Result(id = true,column = "id",property = "id"),
             @Result(column = "username",property = "username"),
             @Result(column = "address",property = "address"),
             @Result(column = "sex",property = "sex"),
-            @Result(column = "birthday",property = "birthday")
+            @Result(column = "birthday",property = "birthday"),
+            @Result(column = "id",property="accounts",many = @Many(select = "com.mybatis.dao.IAccountDao.findAccountByUid",fetchType = FetchType.LAZY))
     })
     List<User> findAll();
 
@@ -31,7 +34,6 @@ public interface IUserDao {
     * @return com.mybatis.domain.User
     */
     @Select("select * from user where id=#{id}")
-    @ResultMap(value = {"userMap"})
     User findById(Integer userId);
     /***
     * @Description 根据用户名称查询用户
@@ -40,26 +42,4 @@ public interface IUserDao {
     */
     @Select("select * from user where username like #{username}")
     List<User> findUserByName(String username);
-
-    /***
-    * @Description 保存用户
-    * @Param [user]
-    * @return void
-    */
-    @Insert("insert into user(username,address,sex,birthday)values(#{username},#{address},#{sex},#{birthday})")
-    void saveUser(User user);
-    /***
-    * @Description 更新用户信息
-    * @Param [user]
-    * @return void
-    */
-    @Update("update user set username=#{username},address=#{address},sex=#{sex},birthday=#{birthday} where id=#{id}")
-    void updateUser(User user);
-    /***
-    * @Description 删除用户信息
-    * @Param [user]
-    * @return void
-    */
-    @Delete("delete from user where id=#{id}")
-    void deleteUser(Integer userId);
 }

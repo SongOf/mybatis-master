@@ -5,3 +5,8 @@
 /mybatis-dao-impl-demo/target/
 /mybatis-design-demo/target/
 /mybatis-demo-properties/target/
+/mybatis-dynamicsql-demo/target/
+/mybatis-one2many-query-demo/target/
+/mybatis-many2many-query-demo/target/
+/mybatis-cache-demo/target/
+/mybatis-annotation-demo-multabquery/target/

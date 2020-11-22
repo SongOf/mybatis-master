@@ -321,19 +321,45 @@ private synchronized void initializeDriver() throws SQLException {
 ## 事务
 - 概念
 ```
-
+事务是逻辑上的一组操作(sql)，要么都执行，要么都不执行。
 ```
 - 特性
 ```
-
+原子性： 事务是最小的执行单位，不允许分割。事务的原子性确保动作要么全部完成，要么完全不起作用；
+一致性： 执行事务前后，数据保持一致，多个事务对同一个数据读取的结果是相同的；
+隔离性： 并发访问数据库时，一个用户的事务不被其他事务所干扰，各并发事务之间数据库是独立的；
+持久性： 一个事务被提交之后。它对数据库中数据的改变是持久的，即使数据库发生故障也不应该对其有任何影响。
 ```
 - 多事务下的问题
 ```
-
+脏读（Dirty read）: 当一个事务正在访问数据并且对数据进行了修改，而这种修改还没有提交到
+数据库中，这时另外一个事务也访问了这个数据，然后使用了这个数据。因为这个数据是还没有提交
+的数据，那么另外一个事务读到的这个数据是“脏数据”，依据“脏数据”所做的操作可能是不正确的。
+```
+```
+丢失修改（Lost to modify）: 指在一个事务读取一个数据时，另外一个事务也访问了该数据，
+那么在第一个事务中修改了这个数据后，第二个事务也修改了这个数据。这样第一个事务内的修改
+结果就被丢失，因此称为丢失修改。 例如：事务1读取某表中的数据A=20，事务2也读取A=20，
+事务1修改A=A-1，事务2也修改A=A-1，最终结果A=19，事务1的修改被丢失。
+```
+```
+不可重复读（Unrepeatableread）: 指在一个事务内多次读同一数据。在这个事务还没有结束时，
+另一个事务也访问该数据。那么，在第一个事务中的两次读数据之间，由于第二个事务的修改导致第
+一个事务两次读取的数据可能不太一样。这就发生了在一个事务内两次读到的数据是不一样的情况，
+因此称为不可重复读。
+```
+```
+幻读（Phantom read）: 幻读与不可重复读类似。它发生在一个事务（T1）读取了几行数据，接着
+另一个并发事务（T2）插入了一些数据时。在随后的查询中，第一个事务（T1）就会发现多了一些原
+本不存在的记录，就好像发生了幻觉一样，所以称为幻读。
+注：不可重复读的重点是修改，幻读的重点在于新增或者删除。
 ```
 - 隔离级别
 ```
-
+READ-UNCOMMITTED(读取未提交)： 最低的隔离级别，允许读取尚未提交的数据变更，可能会导致脏读、幻读或不可重复读。
+READ-COMMITTED(读取已提交)： 允许读取并发事务已经提交的数据，可以阻止脏读，但是幻读或不可重复读仍有可能发生。
+REPEATABLE-READ(可重复读)： 对同一字段的多次读取结果都是一致的，除非数据是被本身事务自己所修改，可以阻止脏读和不可重复读，但幻读仍有可能发生。
+SERIALIZABLE(可串行化)： 最高的隔离级别，完全服从ACID的隔离级别。所有的事务依次逐个执行，这样事务之间就完全不可能产生干扰，也就是说，该级别可以防止脏读、不可重复读以及幻读。
 ```
 - Mybatis事务
 ```
@@ -426,14 +452,191 @@ separator 每一项之间的分隔符
 
 注：如果拿出每一个订单，他都只能属于一个用户
    所以mybatis就把 多对一 看成 一对一
-- 多表查询示例
+- 多表查询示例之一对一
 ```
 用户和账户
     一个用户可以有多个账户
-    一个账户只能属于一个用户
+    一个账户只能属于一个用户（多个账户也可以属于同一个用户）
 步骤：
     1、建立两张表：用户表、账户表
-    2、
+        让用户表和账户表之间具备一对多的关系：需要使用外键在账户表中添加
+    2、建立两个实体类：用户实体类和账户实体类
+        让用户和账户的实体类能体现出一对多的关系
+    3、建立两个配置文件
+        用户配置文件
+        账户配置文件
+    4、实现配置
+        当我们查询用户时，可以同时得到用户下所包含的账户信息
+        当我们查询账户时，可以同时得到账户的所属用户信息
+```
+```
+示例见：mybatis-one2many-query-demo
+```
+```
+继承Account类的方式实现账户表：用户表的一对一查询操作，该方法不推荐
+    1、AccountUser类继承Account类
+    2、IAccountDao接口类添加方法
+    /***
+    * @Description 查询所有账户，并且带有用户名称和地址信息
+    * @Param []
+    * @return java.util.List<com.mybatis.domain.Account>
+    */
+    List<AccountUser> findAllAccount();
+    3、xml配置
+    <!--查询所有账户同时包含用户名和地址信息-->
+    <select id="findAllAccount" resultType="com.mybatis.domain.AccountUser">
+        select a.*,u.username,u.address from account as a,user as u where u.id=a.uid
+    </select>
+```
+```
+通过实体类关系实现账户表：用户表的一对一查询操作，推荐
+    1、Account类添加属性
+    //从表实体应该包含一个主表实体的对象引用
+    private User user;
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+    2、IAccountDao接口类添加方法
+    /***
+    * @Description 查询所有账户,同时还要获取到当前账户的所属用户信息
+    * @Param []
+    * @return java.util.List<com.mybatis.domain.Account>
+    */
+    List<Account> findAll();
+    3、xml配置
+    <!--定义封装account和user的resultMap-->
+    <resultMap id="accountUserMap" type="account">
+        <id property="id" column="aid"></id>
+        <result property="uid" column="uid"></result>
+        <result property="money" column="money"></result>
+        <!-- 一对一的关系映射，配置封装user的内容-->
+        <association property="user" column="uid" javaType="com.mybatis.domain.User">
+            <id property="id" column="id"></id>
+            <result property="username" column="username"></result>
+            <result property="address" column="address"></result>
+            <result property="sex" column="sex"></result>
+            <result property="birthday" column="birthday"></result>
+        </association>
+    </resultMap>
+
+    <!--配置查询所有-->
+    <select id="findAll" resultMap="accountUserMap">
+        select u.*,a.id as aid,a.uid,a.money from account as a,user as u where u.id=a.uid
+    </select>
+```
+- 多表查询示例之一对多
+```
+示例见：mybatis-one2many-query-demo
+    准备工作同多表查询示例之一对一部分
+```
+```
+user表:account表一对多查询实现
+    1、User表添加属性
+    //一对多关系映射，主表实体应该包含从表实体的集合引用
+    private List<Account> accounts;
+
+    public List<Account> getAccounts() {
+        return accounts;
+    }
+
+    public void setAccounts(List<Account> accounts) {
+        this.accounts = accounts;
+    }
+    2、IUserDao添加方法
+    /***
+    * @Description 查询所有用户，同时获取到用户下所有账户信息
+    * @Param []
+    * @return java.util.List<com.mybatis.domain.User>
+    */
+    List<User> findAll();
+    3、xml配置
+    <!-- 定义User的resultMap-->
+    <resultMap id="userAccountMap" type="user">
+        <id property="id" column="id"></id>
+        <result property="username" column="username"></result>
+        <result property="address" column="address"></result>
+        <result property="sex" column="sex"></result>
+        <result property="birthday" column="birthday"></result>
+        <!--配置user对象中accounts集合的映射-->
+        <collection property="accounts" ofType="account">
+            <id property="id" column="aid"></id>
+            <result property="uid" column="uid"></result>
+            <result property="money" column="money"></result>
+        </collection>
+    </resultMap>
+    <!--配置查询所有-->
+    <select id="findAll" resultMap="userAccountMap">
+        select u.*,a.id as aid,a.uid,a.money from user as u left outer join account as a on u.id=a.uid;
+    </select>
+```
+- 多表查询示例之多对多
+```
+用户和角色：
+    一个用户可以有多个角色
+    一个角色可以赋予多个角色
+步骤：
+    1、建立两张表：用户表，角色表
+        让用户表和角色表具有多对多的关系。需要使用中间表，中间表包含各自的主键，在中间表中是外键
+    2、建立两个实体类：用户实体类和角色实体类
+        让用户和角色的实体类能体现出多对多的关系，各自包含对方一个集合引用
+    3、建立两个配置文件
+        用户的配置文件
+        角色的配置文件
+    4、实现配置
+        当我们查询用户时，可以同时得到用户所包含的角色信息
+        当我们查询角色时，可以同时得到角色的所赋予的用户信息
+```
+```
+示例见：mybatis-many2many-query-demo
+```
+```
+查询所有角色，同时获取角色的所赋予的用户：
+    1、Role表添加属性
+    //多对多的关系映射，一个角色可以赋予多个用户
+    private List<User> users;
+
+    public List<User> getUsers() {
+        return users;
+    }
+
+    public void setUsers(List<User> users) {
+        this.users = users;
+    }
+    2、IRoleDao添加方法
+    /***
+    * @Description 查询所有角色信息
+    * @Param []
+    * @return java.util.List<com.mybatis.domain.Role>
+    */
+    List<Role> findAll();
+    3、xml配置
+    <resultMap id="roleMap" type="role">
+        <id property="roleId" column="rid"></id>
+        <result property="roleName" column="role_name"></result>
+        <result property="roleDesc" column="role_desc"></result>
+        <collection property="users" ofType="user">
+            <id property="id" column="id"></id>
+            <result property="username" column="username"></result>
+            <result property="address" column="address"></result>
+            <result property="sex" column="sex"></result>
+            <result property="birthday" column="birthday"></result>
+        </collection>
+    </resultMap>
+    <!--查询所有角色-->
+    <select id="findAll" resultMap="roleMap">
+        select u.*,r.id as rid,r.role_name,r.role_desc from role as r
+        left outer join user_role as ur on r.id=ur.rid
+        left outer join user as u on ur.uid=u.id;
+    </select>
+```
+```
+查询所有用户，同时获取用户的所具有的角色：
+    见示例 mybatis-many2many-query-demo
 ```
 ## 延迟加载
 ```
@@ -456,7 +659,58 @@ separator 每一项之间的分隔符
     一对多，多对多：通常情况下我们都是采用延迟加载。
     多对一，一对一：通常情况下我们都是采用立即加载。
 ```
-- 延迟加载示例
+- 延迟加载示例之一对一查询
+```
+<!--配置懒加载参数-->
+    <settings>
+        <!--开启mybatis支持延迟加载-->
+        <setting name="lazyLoadingEnabled" value="true"/>
+        <setting name="aggressiveLazyLoading" value="false"/>
+    </settings>
+```
+```
+    <!--定义封装account和user的resultMap-->
+    <resultMap id="accountUserMap" type="account">
+        <id property="id" column="id"></id>
+        <result property="uid" column="uid"></result>
+        <result property="money" column="money"></result>
+        <!-- 一对一的关系映射，配置封装user的内容
+        select属性指定的内容，查询用户的唯一标识
+        column属性指定的内容，用户根据id查询时，所需要的参数的值
+        -->
+        <association property="user" column="uid" javaType="user" select="com.mybatis.dao.IUserDao.findUserById"></association>
+    </resultMap>
+
+    <!--配置查询所有-->
+    <select id="findAll" resultMap="accountUserMap">
+        select * from account
+    </select>
+```
+- 延迟加载示例之一对多查询
+```
+<!--配置懒加载参数-->
+    <settings>
+        <!--开启mybatis支持延迟加载-->
+        <setting name="lazyLoadingEnabled" value="true"/>
+        <setting name="aggressiveLazyLoading" value="false"/>
+    </settings>
+```
+```
+    <!-- 定义User的resultMap-->
+    <resultMap id="userAccountMap" type="user">
+        <id property="id" column="id"></id>
+        <result property="username" column="username"></result>
+        <result property="address" column="address"></result>
+        <result property="sex" column="sex"></result>
+        <result property="birthday" column="birthday"></result>
+        <!--配置user对象中accounts集合的映射-->
+        <collection property="accounts" ofType="account" select="com.mybatis.dao.IAccountDao.findAccountByUid" column="id"></collection>
+    </resultMap>
+    <!--配置查询所有-->
+    <select id="findAll" resultMap="userAccountMap">
+        select * from user
+    </select>
+```
 ## 缓存
 ![输入图片说明](docs/缓存.jpg "在这里输入图片标题")
 - Mybatis一级缓存
@@ -469,6 +723,33 @@ separator 每一项之间的分隔符
     当SqlSession对象消失时，mybatis的一级缓存也就消失了。
 ```
 - Mybatis一级缓存示例
+```
+示例见 mybatis-cache-demo
+    //测试使用了一级缓存
+    @Test
+    public void testFirstLevelCache(){
+        User user1=userDao.findUserById(41);
+        System.out.println(user1);
+        User user2=userDao.findUserById(41);
+        System.out.println(user2);
+        System.out.println(user1==user2);
+    }
+    //测试使用了一级缓存
+    @Test
+    public void testFirstLevelCache1(){
+        User user1=userDao.findUserById(41);
+        System.out.println(user1);
+        session.clearCache();
+        User user2=userDao.findUserById(41);
+        System.out.println(user2);
+        System.out.println(user1==user2);
+    }
+```
+- Mybatis一级缓存默认清空时机
+```
+Mybatis一级缓存是SqlSession范围的缓存，当调用SqlSession的修改、添加、删除、
+commit()、close()方法时，就会清空缓存
+```
 - Mybatis二级缓存
 ```
 二级缓存：默认不开启
@@ -478,6 +759,9 @@ separator 每一项之间的分隔符
 ```
 ![输入图片说明](docs/二级缓存.png "在这里输入图片标题")
 - Mybatis二级缓存的使用步骤
+```
+示例见 mybatis-cache-demo
+```
 ```
 第一步：让Mybatis框架支持二级缓存（在SqlMapConfig.xml中配置）
 ```
@@ -491,3 +775,51 @@ separator 每一项之间的分隔符
 ```
 ![输入图片说明](docs/step3.jpg "在这里输入图片标题")
 ## 注解开发
+```
+单表CURD操作
+    示例见 mybatis-annotation-demo
+```
+```
+基于注解的实体类属性和数据库表列的映射
+    /***
+    * @Description 查询所有用户
+    * @Param []
+    * @return java.util.List<com.mybatis.domain.User>
+    */
+    @Select("select * from user")
+    @Results(id = "userMap", value = {
+            @Result(id=true,column = "id",property = "id"),
+            @Result(column = "username",property = "username"),
+            @Result(column = "address",property = "address"),
+            @Result(column = "sex",property = "sex"),
+            @Result(column = "birthday",property = "birthday")
+    })
+    List<User> findAll();
+
+    /***
+    * @Description 根据id查询用户
+    * @Param [userId]
+    * @return com.mybatis.domain.User
+    */
+    @Select("select * from user where id=#{id}")
+    @ResultMap(value = {"userMap"})
+    User findById(Integer userId);
+```
+- Mybatis注解开发下的多表查询
+```
+注解开发下Account:User的一对一的查询配置
+    示例见 mybatis-annotation-demo-multitable
+```
+```
+注解开发下User:Account的一对多的查询配置
+    示例见 mybatis-annotation-demo-multitable
+```
+- Mybatis注解开发下使用两级缓存
+```
+    1、配置开启二级缓存
+    <settings>
+        <setting name="cacheEnabled" value="true"/>
+    </settings>
+    2、dao类配置开启二级缓存
+    @CacheNamespace(blocking = true)
+```

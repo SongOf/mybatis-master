@@ -2,7 +2,6 @@
 <!DOCTYPE configuration
         PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-config.dtd">
-<!-- mybatis的主配置文件 复杂配置 -->
 <configuration>
     <!-- 配置properties
         可以在标签内部配置连接数据库的信息。也可以通过属性引用外部配置文件信息

@@ -16,6 +16,12 @@
         <module>mybatis-design-demo</module>
         <module>mybatis-demo-properties</module>
         <module>mybatis-dynamicsql-demo</module>
+        <module>mybatis-one2many-query-demo</module>
+        <module>mybatis-many2many-query-demo</module>
+        <module>mybatis-lazyload-demo</module>
+        <module>mybatis-cache-demo</module>
+        <module>mybatis-annotation-demo-2</module>
+        <module>mybatis-annotation-demo-multabquery</module>
     </modules>
 
 

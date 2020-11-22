@@ -2,15 +2,17 @@
 <!DOCTYPE configuration
         PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-config.dtd">
-<!-- mybatis的主配置文件 复杂配置 -->
 <configuration>
     <!-- 配置properties
         可以在标签内部配置连接数据库的信息。也可以通过属性引用外部配置文件信息
         resource属性： 常用的
             用于指定配置文件的位置，是按照类路径的写法来写，并且必须存在于类路径下。-->
     <!--resource属性-->
-    <properties resource="jdbcConfig.properties">
-    </properties>
+    <properties resource="jdbcConfig.properties"></properties>
+    
+    <settings>
+        <setting name="cacheEnabled" value="true"/>
+    </settings>
 
     <!--使用typeAliases配置别名，它只能配置domain中类的别名 -->
     <typeAliases>
